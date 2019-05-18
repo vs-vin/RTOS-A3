@@ -150,13 +150,14 @@ void input_processes() {
 //Schedule processes according to SRTF rule
 void process_SRTF() {
 
-    int endTime, smallest, time, remain = 0;
+    int endTime, smallest, time, finished = 0;
 
     //Placeholder remaining time to be replaced
     processes[8].remain_t=9999;
 
     //Run function until remain is equal to number of processes
-    for (time = 0; remain != PROCESSNUM; time++) {
+    for (time = 0; finished < PROCESSNUM; time++) 
+    {
 
 	//Assign placeholder remaining time as smallest
         smallest = 8;
@@ -175,20 +176,21 @@ void process_SRTF() {
         processes[smallest].remain_t--;
 
 	//If process is finished, save time information, add to average totals and increase remain
-        if (processes[smallest].remain_t == 0) {
+      if (processes[smallest].remain_t == 0) 
+      {
 
-            remain++;
+        finished++;
 
-            endTime=time+1;
+        endTime=time+1;
 
-	    processes[smallest].turnaround_t = endTime-processes[smallest].arrive_t;
+		    processes[smallest].turnaround_t = endTime-processes[smallest].arrive_t;
 
-	    processes[smallest].wait_t = endTime-processes[smallest].burst_t-processes[smallest].arrive_t;
+		    processes[smallest].wait_t = endTime-processes[smallest].burst_t-processes[smallest].arrive_t;
 
-	    avg_wait_t += processes[smallest].wait_t;
+		    avg_wait_t += processes[smallest].wait_t;
 
-	    avg_turnaround_t += processes[smallest].turnaround_t;
-        }
+		    avg_turnaround_t += processes[smallest].turnaround_t;
+      }
     }
 
 }
