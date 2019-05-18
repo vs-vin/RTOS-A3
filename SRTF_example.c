@@ -148,99 +148,105 @@ void input_processes() {
 }
 
 //Schedule processes according to SRTF rule
-void process_SRTF() {
+void process_SRTF() 
+{
 
-    int endTime, current, time, finished = 0;
+  int endTime, current, time, finished = 0;
 
-    int fd, k, m = 0;
+  int fd, k, m = 0, q = 0;
 
-    char p, j;
-  
-    // FIFO file path 
-    char * myfifo = "/tmp/myfifo"; 
+  char p, j;
 
-    mkfifo(myfifo, 0666);  //difference 1
+  // FIFO file path 
+  char * myfifo = "/tmp/myfifo"; 
 
-    // O_RDWR read and write mode
+  mkfifo(myfifo, 0666);  //difference 1
 
-    // Open FIFO for read and write 
-    fd = open(myfifo, O_RDWR); // difference 2
+  // O_RDWR read and write mode
 
-    // //Placeholder remaining time to be replaced
-    // processes[8].remain_t=9999;
+  // Open FIFO for read and write 
+  fd = open(myfifo, O_RDWR); // difference 2
 
-    //Run function until remain is equal to number of processes
-    for (time = 0; finished < PROCESSNUM; time++) 
-    {
+  // //Placeholder remaining time to be replaced
+  // processes[8].remain_t=9999;
 
-	//Assign placeholder remaining time as smallest
-        current = 8;
+  //Run function until remain is equal to number of processes
+  for (time = 0; finished < PROCESSNUM; time++) 
+  {
 
-	//Check all processes that have arrived for lowest remain time then set the lowest to be smallest
-        for (i=0;i<PROCESSNUM;i++) 
-        {
-        	if (processes[i].arrive_t == time)
-        	{
-        		// fd = open(myfifo, O_RDWR);
-        		p = '1' + i;
-        		printf("\nprocess %c has arrived at time %d\n", p, time);
-        		
-        		k = write(fd, &p, sizeof(p));
-        		
-        		printf("\tadded %d byte(s) to fifo..\n", k);
+		//Assign placeholder remaining time as smallest
+    current = 8;
 
-        		// k = read(fd, &j, sizeof(j));
+		//Check all processes that have arrived for lowest remain time then set the lowest to be smallest
+	  for (i=0;i<PROCESSNUM;i++) 
+	  {
+	  	if (processes[i].arrive_t == time)
+	  	{
+	  		// fd = open(myfifo, O_RDWR);
+	  		p = '1' + i;
+	  		printf("\nprocess %c has arrived at time %d\n", p, time);
+	  		
+	  		k = write(fd, &p, sizeof(p));
+	  		
+	  		printf("\tadded %d byte(s) to fifo..\n", k);
+	  		
+	  		finished++;
+	  		// close(fd);
+	  	}
 
-        		// printf("\tread %d bytes from fifo as %c..\n", k, j);
-        		
-        		finished++;
-        		// close(fd);
-        	}
-        }
-    }
+	  }
 
-    printf("\nqueue in FIFO is:\n");
-    while (m < 7)// read(fd, &j, sizeof(j)) > 0)
-    {
-    	// fd = open(myfifo, O_RDWR);
-    	k = read(fd, &j, sizeof(j));
+    q++;
+  	if (q > 4)
+  	{
+  		printf("\nTime quantum elapsed at time %d\n", time);
+  		q = 1;
+  	}
 
-      printf("\tread %d bytes from fifo as %c..\n", k, j);
+  }
 
-      m++;
-    	//printf("P%d, ", j);
-    	// close(fd);
-    }
+  printf("\nqueue in FIFO is:\n");
+  while (m < 7)// read(fd, &j, sizeof(j)) > 0)
+  {
+  	// fd = open(myfifo, O_RDWR);
+  	k = read(fd, &j, sizeof(j));
 
-    close(fd);
+    printf("\tread %d bytes from fifo as %c..\n", k, j);
+
+    m++;
+  	//printf("P%d, ", j);
+  	// close(fd);
+  }
+
+  close(fd);
 /*****************************************************************
-          // if (processes[i].arrive_t <= time && processes[i].remain_t < processes[smallest].remain_t && 
-          // 		processes[i].remain_t > 0) 
-          // {
-          //   smallest = i;
-          // }
-        }
-
-	//Decrease remaining time as time increases
-        processes[current].remain_t--;
-
-	//If process is finished, save time information, add to average totals and increase remain
-      if (processes[current].remain_t == 0) 
-      {
-
-        finished++;
-
-        endTime=time+1;
-
-		    processes[current].turnaround_t = endTime - processes[current].arrive_t;
-
-		    processes[current].wait_t = process{current].turnaround_t - processes[current].burst_t;
-
-		    avg_wait_t += processes[current].wait_t;
-
-		    avg_turnaround_t += processes[current].turnaround_t;
+        // if (processes[i].arrive_t <= time && processes[i].remain_t < processes[smallest].remain_t && 
+        // 		processes[i].remain_t > 0) 
+        // {
+        //   smallest = i;
+        // }
       }
+
+//Decrease remaining time as time increases
+      processes[current].remain_t--;
+
+//If process is finished, save time information, add to average totals and increase remain
+    if (processes[current].remain_t == 0) 
+    {
+
+      finished++;
+
+      endTime=time+1;
+
+	    processes[current].turnaround_t = endTime - processes[current].arrive_t;
+
+	    processes[current].wait_t = process{current].turnaround_t - processes[current].burst_t;
+
+	    avg_wait_t += processes[current].wait_t;
+
+	    avg_turnaround_t += processes[current].turnaround_t;
     }
+  }
 
 ***************************************************************/
 }
