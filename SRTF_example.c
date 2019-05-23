@@ -34,14 +34,14 @@ typedef struct
 {
      int pid;//process id
      int arrive_t, wait_t, burst_t, turnaround_t, remain_t;//process time
-}process;
+}process_info;
 
 //Max number of processes
 #define PROCESSNUM 7
 //Array of processes with 1 extra for placeholder remain_t
-process processes[9];
-//Index variable
-int i;
+process_info process[9];
+//Queue variable
+int Len = 0;
 //Averages calculated
 float avg_wait_t = 0.0, avg_turnaround_t = 0.0;
 //Semaphore
@@ -62,6 +62,10 @@ void print_results();
 void thread1_routine();
 //Thread 2 of assignment
 void thread2_routine();
+//Add process to FIFO queue
+int queue_add(int fd, uint8_t w);
+//Take a process from queue
+uint8_t queue_take(int fd);
 
 /*---------------------------------- Implementation -------------------------------*/
 //Create semaphores, run threads then end threads and semaphores when finished
@@ -133,18 +137,18 @@ Process ID           Arrive time          Burst time
 */
 //Create process arrive times and burst times, taken from assignment details
 void input_processes() {
-	processes[0].pid = 1; processes[0].arrive_t = 8;	processes[0].burst_t = 10;
-	processes[1].pid = 2; processes[1].arrive_t = 10;	processes[1].burst_t = 3;
-	processes[2].pid = 3; processes[2].arrive_t = 14;	processes[2].burst_t = 7;
-	processes[3].pid = 4; processes[3].arrive_t = 9;	processes[3].burst_t = 5;
-	processes[4].pid = 5; processes[4].arrive_t = 16; processes[4].burst_t = 4;
-	processes[5].pid = 6; processes[5].arrive_t = 21; processes[5].burst_t = 6;
-	processes[6].pid = 7; processes[6].arrive_t = 26; processes[6].burst_t = 2;
-	//processes[7].pid = 8; processes[7].arrive_t = 30; processes[7].burst_t = 13;
+	process[0].pid = 1; process[0].arrive_t = 8;	process[0].burst_t = 10;
+	process[1].pid = 2; process[1].arrive_t = 10;	process[1].burst_t = 3;
+	process[2].pid = 3; process[2].arrive_t = 14;	process[2].burst_t = 7;
+	process[3].pid = 4; process[3].arrive_t = 9;	process[3].burst_t = 5;
+	process[4].pid = 5; process[4].arrive_t = 16; process[4].burst_t = 4;
+	process[5].pid = 6; process[5].arrive_t = 21; process[5].burst_t = 6;
+	process[6].pid = 7; process[6].arrive_t = 26; process[6].burst_t = 2;
+	//process[7].pid = 8; process[7].arrive_t = 30; process[7].burst_t = 13;
 
 	//Initialise remaining time to be same as burst time
-	for (i = 0; i < PROCESSNUM; i++) {
-		processes[i].remain_t = processes[i].burst_t;
+	for (int i = 0; i < PROCESSNUM; i++) {
+		process[i].remain_t = process[i].burst_t;
 	}
 }
 
@@ -154,7 +158,7 @@ void process_SRTF()
 
   int endTime, current, time, finished = 0;
 
-  int fd, k, m = 0, q = 0, len = 0;
+  int i, fd, k, m = 0, q = 0;
 
   char p, j;
 
@@ -173,7 +177,7 @@ void process_SRTF()
   fd = open(myfifo, O_RDWR); // difference 2
 
   // //Placeholder remaining time to be replaced
-  // processes[8].remain_t=9999;
+  // process[8].remain_t=9999;
 
   //Run function until remain is equal to number of processes
   for (time = 0; finished < PROCESSNUM; time++) 
@@ -185,22 +189,13 @@ void process_SRTF()
 		//Check all processes that have arrived for lowest remain time then set the lowest to be smallest
 	  for (i=0;i<PROCESSNUM;i++) 
 	  {
-	  	if (processes[i].arrive_t == time)
+	  	if (process[i].arrive_t == time)
 	  	{
-	  		// fd = open(myfifo, O_RDWR);
-	  		p = '1' + i;
-	  		printf("\nP%c has arrived at time %d\n", p, time);
 	  		w = i + 1;
-	  		// k = write(fd, &p, sizeof(p));
-	  		k = write(fd, &w, sizeof(w));
-	  		// k = fprintf((FILE*)fd, "%d", p);
-	  		len++;
-	  		
-	  		printf("\tadded %d byte(s) to fifo..\n", k);
-
+	  		printf("\nP%d has arrived at time %d\n", w, time);
+	  		queue_add(fd, w);
 	  		  		
 	  		finished++;
-	  		// close(fd);
 	  	}
 
 	  }
@@ -208,20 +203,14 @@ void process_SRTF()
     q++;
   	if (q > 4)
   	{
-  		printf("\nTime quantum elapsed at time %d\n", time);
+  		printf("\n--------- Time quantum elapsed at time %d ---------\n", time);
   		q = 1;
   		
-  		if (len > 0)
+  		if (Len > 0)
   		{
-  			// k = read(fd, &j, sizeof(j));
-  			k = read(fd, &r, sizeof(r));
-  			// k = fscanf(fd, "%d", &r);
-  			len--;
-  			printf("\tread %d bytes from fifo as %d..\n", k, r);
-    		// printf("\tread %d bytes from fifo as %c..\n", k, j);
-	    	// current = j - '0';
-	    	current = r;
-	    	printf("\t Current process set to P%d\n", current);
+  			r = queue_take(fd);
+	    	current = r - 1;
+	    	printf("\t Current process set to process[%d]\n", current);
   		}
   		
 
@@ -231,51 +220,38 @@ void process_SRTF()
   }
 
   printf("\nqueue in FIFO is:\n");
-  while (len > 0)// read(fd, &j, sizeof(j)) > 0)
+  while (Len > 0)
   {
-  	// fd = open(myfifo, O_RDWR);
-
-  	// k = read(fd, &j, sizeof(j));
-  	// len--;
-   //  printf("\tread %d bytes from fifo as %c..\n", k, j);
-
-    // k = fscanf(fd, "%d", &r);
-    k = read(fd, &r, sizeof(r));
-		len--;
-		printf("\tread %d bytes from fifo as %d..\n", k, r);
-
-    // m++;
-  	//printf("P%d, ", j);
-  	// close(fd);
+		queue_take(fd);
   }
 
   close(fd);
 /*****************************************************************
-        // if (processes[i].arrive_t <= time && processes[i].remain_t < processes[smallest].remain_t && 
-        // 		processes[i].remain_t > 0) 
+        // if (process[i].arrive_t <= time && process[i].remain_t < process[smallest].remain_t && 
+        // 		process[i].remain_t > 0) 
         // {
         //   smallest = i;
         // }
       }
 
 //Decrease remaining time as time increases
-      processes[current].remain_t--;
+      process[current].remain_t--;
 
 //If process is finished, save time information, add to average totals and increase remain
-    if (processes[current].remain_t == 0) 
+    if (process[current].remain_t == 0) 
     {
 
       finished++;
 
       endTime=time+1;
 
-	    processes[current].turnaround_t = endTime - processes[current].arrive_t;
+	    process[current].turnaround_t = endTime - process[current].arrive_t;
 
-	    processes[current].wait_t = process{current].turnaround_t - processes[current].burst_t;
+	    process[current].wait_t = process{current].turnaround_t - process[current].burst_t;
 
-	    avg_wait_t += processes[current].wait_t;
+	    avg_wait_t += process[current].wait_t;
 
-	    avg_turnaround_t += processes[current].turnaround_t;
+	    avg_turnaround_t += process[current].turnaround_t;
     }
   }
 
@@ -295,11 +271,29 @@ void print_results() {
 
 	printf("\tProcess ID\tArrival Time\tBurst Time\tWait Time\tTurnaround Time\n");
 
-	for (i = 0; i<PROCESSNUM; i++) {
-	  	printf("\t%d\t\t%d\t\t%d\t\t%d\t\t%d\n", processes[i].pid,processes[i].arrive_t, processes[i].burst_t, processes[i].wait_t, processes[i].turnaround_t);
+	for (int i = 0; i<PROCESSNUM; i++) {
+	  	printf("\t%d\t\t%d\t\t%d\t\t%d\t\t%d\n", process[i].pid,process[i].arrive_t, process[i].burst_t, process[i].wait_t, process[i].turnaround_t);
 	}
 
 	printf("\nAverage wait time: %fs\n", avg_wait_t);
 
 	printf("\nAverage turnaround time: %fs\n", avg_turnaround_t);
+}
+
+
+int queue_add(int fd, uint8_t w)
+{
+	int k = write(fd, &w, sizeof(w));
+	Len++;
+	printf("\tadded %d byte(s) to fifo..\n", k);
+	return 0;  		
+}
+
+uint8_t queue_take(int fd)
+{
+	uint8_t r;
+	int k = read(fd, &r, sizeof(r));
+  Len--;
+  printf("\tread %d bytes from fifo as %d..\n", k, r);
+  return r;
 }
