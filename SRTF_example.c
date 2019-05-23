@@ -26,6 +26,7 @@ Process ID           Arrive time          Burst time
 #include<sys/types.h>
 #include<sys/stat.h>
 #include<fcntl.h>
+// #include<stdint.h>
 
 /*---------------------------------- Variables -------------------------------*/
 //a struct storing the information of each process
@@ -153,9 +154,13 @@ void process_SRTF()
 
   int endTime, current, time, finished = 0;
 
-  int fd, k, m = 0, q = 0;
+  int fd, k, m = 0, q = 0, len = 0;
 
   char p, j;
+
+  int r, w;
+
+  // uint8_t integer;
 
   // FIFO file path 
   char * myfifo = "/tmp/myfifo"; 
@@ -184,12 +189,14 @@ void process_SRTF()
 	  	{
 	  		// fd = open(myfifo, O_RDWR);
 	  		p = '1' + i;
-	  		printf("\nprocess %c has arrived at time %d\n", p, time);
+	  		printf("\nP%c has arrived at time %d\n", p, time);
 	  		
 	  		k = write(fd, &p, sizeof(p));
+	  		len++;
 	  		
 	  		printf("\tadded %d byte(s) to fifo..\n", k);
-	  		
+
+	  		  		
 	  		finished++;
 	  		// close(fd);
 	  	}
@@ -201,19 +208,31 @@ void process_SRTF()
   	{
   		printf("\nTime quantum elapsed at time %d\n", time);
   		q = 1;
+  		
+  		if (len > 0)
+  		{
+  			k = read(fd, &j, sizeof(j));
+  			len--;
+    		printf("\tread %d bytes from fifo as %c..\n", k, j);
+	    	current = j - '0';
+	    	printf("\t Current process set to P%d\n", current);
+  		}
+  		
+
+
   	}
 
   }
 
   printf("\nqueue in FIFO is:\n");
-  while (m < 7)// read(fd, &j, sizeof(j)) > 0)
+  while (len > 0)// read(fd, &j, sizeof(j)) > 0)
   {
   	// fd = open(myfifo, O_RDWR);
   	k = read(fd, &j, sizeof(j));
-
+  	len--;
     printf("\tread %d bytes from fifo as %c..\n", k, j);
 
-    m++;
+    // m++;
   	//printf("P%d, ", j);
   	// close(fd);
   }
