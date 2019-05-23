@@ -26,7 +26,7 @@ Process ID           Arrive time          Burst time
 #include<sys/types.h>
 #include<sys/stat.h>
 #include<fcntl.h>
-// #include<stdint.h>
+#include<stdint.h>
 
 /*---------------------------------- Variables -------------------------------*/
 //a struct storing the information of each process
@@ -158,7 +158,7 @@ void process_SRTF()
 
   char p, j;
 
-  int r, w;
+  uint8_t r, w;
 
   // uint8_t integer;
 
@@ -190,8 +190,10 @@ void process_SRTF()
 	  		// fd = open(myfifo, O_RDWR);
 	  		p = '1' + i;
 	  		printf("\nP%c has arrived at time %d\n", p, time);
-	  		
-	  		k = write(fd, &p, sizeof(p));
+	  		w = i + 1;
+	  		// k = write(fd, &p, sizeof(p));
+	  		k = write(fd, &w, sizeof(w));
+	  		// k = fprintf((FILE*)fd, "%d", p);
 	  		len++;
 	  		
 	  		printf("\tadded %d byte(s) to fifo..\n", k);
@@ -211,10 +213,14 @@ void process_SRTF()
   		
   		if (len > 0)
   		{
-  			k = read(fd, &j, sizeof(j));
+  			// k = read(fd, &j, sizeof(j));
+  			k = read(fd, &r, sizeof(r));
+  			// k = fscanf(fd, "%d", &r);
   			len--;
-    		printf("\tread %d bytes from fifo as %c..\n", k, j);
-	    	current = j - '0';
+  			printf("\tread %d bytes from fifo as %d..\n", k, r);
+    		// printf("\tread %d bytes from fifo as %c..\n", k, j);
+	    	// current = j - '0';
+	    	current = r;
 	    	printf("\t Current process set to P%d\n", current);
   		}
   		
@@ -228,9 +234,15 @@ void process_SRTF()
   while (len > 0)// read(fd, &j, sizeof(j)) > 0)
   {
   	// fd = open(myfifo, O_RDWR);
-  	k = read(fd, &j, sizeof(j));
-  	len--;
-    printf("\tread %d bytes from fifo as %c..\n", k, j);
+
+  	// k = read(fd, &j, sizeof(j));
+  	// len--;
+   //  printf("\tread %d bytes from fifo as %c..\n", k, j);
+
+    // k = fscanf(fd, "%d", &r);
+    k = read(fd, &r, sizeof(r));
+		len--;
+		printf("\tread %d bytes from fifo as %d..\n", k, r);
 
     // m++;
   	//printf("P%d, ", j);
