@@ -156,7 +156,7 @@ void input_processes() {
 void process_SRTF() 
 {
 
-  int endTime, current, time, finished = 0;
+  int endTime = 0, current = 0, time = 0, finished = 0, arrived = 0, idle = 1;
 
   int i, fd, k, m = 0, q = 0;
 
@@ -176,26 +176,36 @@ void process_SRTF()
   // Open FIFO for read and write 
   fd = open(myfifo, O_RDWR); // difference 2
 
-  // //Placeholder remaining time to be replaced
-  // process[8].remain_t=9999;
-
   //Run function until remain is equal to number of processes
   for (time = 0; finished < PROCESSNUM; time++) 
   {
+  	/* when decrementing remaining time then un comment below */
+  	// if (arrived == finished)
+  	// {
+  	// 	idle = 1;
+  	// }
 
-		//Assign placeholder remaining time as smallest
-    current = 8;
-
-		//Check all processes that have arrived for lowest remain time then set the lowest to be smallest
-	  for (i=0;i<PROCESSNUM;i++) 
+		//Check if a process has arrived and add to the queue
+	  for (i = 0;i < PROCESSNUM;i++) 
 	  {
 	  	if (process[i].arrive_t == time)
 	  	{
+	  		arrived++;
 	  		w = i + 1;
 	  		printf("\nP%d has arrived at time %d\n", w, time);
-	  		queue_add(fd, w);
+	  		if (Len > 0 || !(idle))
+	  		{
+	  			queue_add(fd, w);
+	  		}
+	  		else
+	  		{
+	  			current = w - 1;
+	  			printf("\t Current process set to process[%d]\n", current);
+	  			idle = 0;
+	  		}
+	  		
 	  		  		
-	  		finished++;
+	  		
 	  	}
 
 	  }
@@ -205,12 +215,21 @@ void process_SRTF()
   	{
   		printf("\n--------- Time quantum elapsed at time %d ---------\n", time);
   		q = 1;
+
+  		
   		
   		if (Len > 0)
   		{
+  			// add curent to queue
+  			w = current + 1;
+  			queue_add(fd, w);
+
+  			// get next process from queue
   			r = queue_take(fd);
 	    	current = r - 1;
 	    	printf("\t Current process set to process[%d]\n", current);
+	    	idle = 0;
+	    	finished++;
   		}
   		
 
@@ -283,9 +302,10 @@ void print_results() {
 
 int queue_add(int fd, uint8_t w)
 {
+	printf("\tadding P%u to queue...\n", w);
 	int k = write(fd, &w, sizeof(w));
 	Len++;
-	printf("\tadded %d byte(s) to fifo..\n", k);
+	printf("\tadded %d byte(s) to fifo\n", k);
 	return 0;  		
 }
 
