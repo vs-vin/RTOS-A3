@@ -27,7 +27,13 @@ Process ID           Arrive time          Burst time
 #include<sys/stat.h>
 #include<fcntl.h>
 #include<stdint.h>
+#include<errno.h>
+// #include<string.h>
+// #include <limits.h>
 // #include<stdin.h>
+
+/*---------------------------------- Defines -------------------------------*/
+#define BUFFER_SIZE 30 + 1
 
 /*---------------------------------- Variables -------------------------------*/
 //a struct storing the information of each process
@@ -46,9 +52,13 @@ int Len = 0;
 //Averages calculated
 float avg_wait_t = 0.0, avg_turnaround_t = 0.0;
 //Semaphore
-sem_t sem_SRTF;
+sem_t sem_SRTF, sem_read;
 //Pthreads
 pthread_t thread1, thread2;
+
+//Named pipe
+char * myfifo = "/tmp/myfifo";
+int FD, fd;
 
 /*---------------------------------- Functions -------------------------------*/
 //Create process arrive times and burst times, taken from assignment details
@@ -58,7 +68,7 @@ void process_SRTF();
 //Simple calculate average wait time and turnaround time function
 void calculate_average();
 //Print results, taken from sample
-void print_results();
+void print_results(float wait, float turnaround);
 //Thread 1 of assignment
 void thread1_routine();
 //Thread 2 of assignment
@@ -76,8 +86,22 @@ int main() {
 
 	if(sem_init(&sem_SRTF, 0, 0)!=0)
 	{
-	    printf("semaphore initialize erro \n");
+	    printf("semaphore initialize error \n");
 	    return(-10);
+	}
+
+	if(sem_init(&sem_read, 0, 0)!=0)
+	{
+	    printf("semaphore initialize error \n");
+	    return(-11);
+	}
+
+	int j = mkfifo(myfifo, 0666);
+
+	if (j != 0)
+	{
+		printf("\nError creating FIFO\n");
+		perror("ERROR mkfifo()");
 	}
 
 	if(pthread_create(&thread1, NULL, (void *)thread1_routine, NULL)!=0)
@@ -108,21 +132,84 @@ int main() {
 	    return -5;
 	}
 
+	if(sem_destroy(&sem_read)!=0)
+	{
+	    printf("Semaphore destroy error\n");
+	    return -6;
+	}
+
 	return 0;
 }
 
 //Thread 1 of assignment
-void thread1_routine() {
+void thread1_routine() 
+{
+	 // Open FIFO for read and write 
+  fd = open(myfifo, O_RDWR); // difference 2
+
 	input_processes();
 	process_SRTF();
 	calculate_average();
+
+	char buffer[BUFFER_SIZE] = " ";
+
+	sprintf(buffer, "%f %f", avg_wait_t, avg_turnaround_t);
+
+	printf("\nString: %s\n", buffer);
+
+	// int j = mkfifo(AvgFifo, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+		// int j = mkfifo(AvgFifo, 0666);
+
+		// if (j != 0)
+		// {
+		// 	printf("\nError creating FIFO\n");
+		// 	perror("ERROR:");
+		// }
+	// printf("\nINT_MAX is %d\n", INT_MAX);
+	// FD = open(AvgFifo, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR);
+		// fd = open(myfifo, O_WRONLY);
+	if (fd < 0)
+		{
+			printf("\nfd ERROR is %d\n", fd);
+			perror("ERROR open()");
+		}
+
+	// printf("\nhere?\n");
+	int k = write(fd, buffer, BUFFER_SIZE);
+	printf("\tadded %d byte(s) to fifo\n", k);
+
 	sem_post(&sem_SRTF);
+	sem_wait(&sem_read);
+	// close file pointers
+	close(fd);
 }
 
 //Thread 2 of assignment
-void thread2_routine() {
+void thread2_routine() 
+{
+	float wait, turnaround;
+
+	char buffer[BUFFER_SIZE];
+
 	sem_wait(&sem_SRTF);
-	print_results();
+
+	printf("\nhere?\n");
+
+	// mkfifo(AvgFifo, 0666);
+	// fd = open(myfifo, O_RDONLY);
+
+	read(fd, buffer, BUFFER_SIZE);
+
+	sscanf(buffer, "%f %f", &wait, &turnaround);
+
+	printf("\nRead from FIFO: %f, %f\n", wait, turnaround);
+
+	sem_post(&sem_read);
+
+	print_results(wait, turnaround);
+
+	// Print to output file
+
 }
 
 /* The input data of the cpu scheduling algorithm is:
@@ -161,21 +248,23 @@ void process_SRTF()
 
   int current = 0, time = 0, finished = 0, arrived = 0, idle = 1;
 
-  int fd, q = 0;
+  // int fd;
+
+  int q = 0;
 
   uint8_t r, w;
 
   // uint8_t integer;
 
   // FIFO file path 
-  char * myfifo = "/tmp/myfifo"; 
+  	// char * myfifo = "/tmp/myfifo"; 
 
-  mkfifo(myfifo, 0666);  //difference 1
+  	// mkfifo(myfifo, 0666);  //difference 1
 
   // O_RDWR read and write mode
 
-  // Open FIFO for read and write 
-  fd = open(myfifo, O_RDWR); // difference 2
+  // // Open FIFO for read and write 
+  	// fd = open(myfifo, O_RDWR); // difference 2
 
   //Run function until remain is equal to number of processes
   for (time = 0; finished < PROCESSNUM; time++) 
@@ -267,7 +356,10 @@ void process_SRTF()
 		queue_take(fd);
   }
 
-  close(fd);
+  printf("\n\tROUND ROBIN FINISHED\n");
+
+  // close(fd);
+  // unlink(myfifo);
 /*****************************************************************
         // if (process[i].arrive_t <= time && process[i].remain_t < process[smallest].remain_t && 
         // 		process[i].remain_t > 0) 
@@ -301,13 +393,15 @@ void process_SRTF()
 }
 
 //Simple calculate average wait time and turnaround time function
-void calculate_average() {
+void calculate_average() 
+{
 	avg_wait_t /= PROCESSNUM;
 	avg_turnaround_t /= PROCESSNUM;
 }
 
 //Print results, taken from sample
-void print_results() {
+void print_results(float wait, float turnaround) 
+{
 
 	printf("Process Schedule Table: \n");
 
@@ -317,9 +411,9 @@ void print_results() {
 	  	printf("\t%d\t\t%d\t\t%d\t\t%d\t\t%d\n", process[i].pid,process[i].arrive_t, process[i].burst_t, process[i].wait_t, process[i].turnaround_t);
 	}
 
-	printf("\nAverage wait time: %fs\n", avg_wait_t);
+	printf("\nAverage wait time: %fms\n", avg_wait_t);
 
-	printf("\nAverage turnaround time: %fs\n", avg_turnaround_t);
+	printf("\nAverage turnaround time: %fms\n", avg_turnaround_t);
 }
 
 
