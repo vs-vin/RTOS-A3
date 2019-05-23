@@ -27,6 +27,7 @@ Process ID           Arrive time          Burst time
 #include<sys/stat.h>
 #include<fcntl.h>
 #include<stdint.h>
+// #include<stdin.h>
 
 /*---------------------------------- Variables -------------------------------*/
 //a struct storing the information of each process
@@ -66,6 +67,8 @@ void thread2_routine();
 int queue_add(int fd, uint8_t w);
 //Take a process from queue
 uint8_t queue_take(int fd);
+//Used when processes finish to calculate wait times and turn around times
+void calculate_process_times(int time, int current);
 
 /*---------------------------------- Implementation -------------------------------*/
 //Create semaphores, run threads then end threads and semaphores when finished
@@ -156,11 +159,9 @@ void input_processes() {
 void process_SRTF() 
 {
 
-  int endTime = 0, current = 0, time = 0, finished = 0, arrived = 0, idle = 1;
+  int current = 0, time = 0, finished = 0, arrived = 0, idle = 1;
 
-  int i, fd, k, m = 0, q = 0;
-
-  char p, j;
+  int fd, q = 0;
 
   uint8_t r, w;
 
@@ -186,7 +187,7 @@ void process_SRTF()
   	// }
 
 		//Check if a process has arrived and add to the queue
-	  for (i = 0;i < PROCESSNUM;i++) 
+	  for (int i = 0;i < PROCESSNUM;i++) 
 	  {
 	  	if (process[i].arrive_t == time)
 	  	{
@@ -204,10 +205,36 @@ void process_SRTF()
 	  			idle = 0;
 	  		}
 	  		
-	  		  		
-	  		
 	  	}
 
+	  }
+
+	  // Check if processes have finished
+	  if (!idle)
+	  {
+	  	process[current].remain_t--;
+
+	  	if (process[current].remain_t == 0)
+	  	{
+	  		printf("\n<<<<<<<< Process %d finished at time %d >>>>>>>>\n", (current +1), time);
+	  		finished++;
+	  		q = 0;
+
+	  		calculate_process_times(time, current);
+
+	  		// get next process from queue
+	  		if (Len > 0)
+	  		{
+					r = queue_take(fd);
+		    	current = r - 1;
+		    	printf("\t Current process set to process[%d]\n", current);
+		    	idle = 0;
+		    }
+		    else
+		    	idle = 1;
+
+	  	}
+	  	
 	  }
 
     q++;
@@ -216,8 +243,6 @@ void process_SRTF()
   		printf("\n--------- Time quantum elapsed at time %d ---------\n", time);
   		q = 1;
 
-  		
-  		
   		if (Len > 0)
   		{
   			// add curent to queue
@@ -229,13 +254,11 @@ void process_SRTF()
 	    	current = r - 1;
 	    	printf("\t Current process set to process[%d]\n", current);
 	    	idle = 0;
-	    	finished++;
+	    	
   		}
   		
-
-
   	}
-
+  	// getchar(); // step through
   }
 
   printf("\nqueue in FIFO is:\n");
@@ -316,4 +339,17 @@ uint8_t queue_take(int fd)
   Len--;
   printf("\tread %d bytes from fifo as %d..\n", k, r);
   return r;
+}
+
+void calculate_process_times(int time, int current)
+{
+	int endTime = time + 1;
+
+  process[current].turnaround_t = endTime - process[current].arrive_t;
+
+  process[current].wait_t = process[current].turnaround_t - process[current].burst_t;
+
+  avg_wait_t += process[current].wait_t;
+
+  avg_turnaround_t += process[current].turnaround_t;
 }
