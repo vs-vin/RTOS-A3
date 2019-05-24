@@ -1,6 +1,9 @@
 /* 
+* Name: Vinayak Sharma
+* SN: 97117523
+*
 * RTOS Autumn 2019
-* Assignment 3 Program_2 template
+* Assignment 3 Program_2
 *
 * To compile:
 * 	gcc -Wall -pthread -lrt Program_2.c -o prog2
@@ -33,6 +36,7 @@ void SignalHandler(int signal);
  */
 int main(int argc, char* argv[])
 {
+	// Check number of arguments given, provide instruction if incorrect
 	if (argc < 2)
 	{
 		printf("\nERROR: Too few arguments. "
@@ -77,10 +81,11 @@ int main(int argc, char* argv[])
 	//Loop through the reference string values.
 	for(int i = 0; i < REFERENCESTRINGLENGTH; i++)
 	{
-		//add your code here
+		// Obtain current page request
 		currentValue = referenceString[i];
 		printf("%d ", currentValue);
 
+		// Check if request is in memory frames
 		match = 0;
 		for(int j = 0; j < frameSize; j++)
 		{
@@ -93,12 +98,13 @@ int main(int argc, char* argv[])
 
 		if (match)
 		{
-			printf(" PH");
+			printf(" PH"); // Page Hit
 		}
 		else
 		{
-			printf(" PF\t");
+			printf(" PF\t"); // Page Fault
 			PageFaults++;
+
 			// FIFO algorithm
 			frame[nextWritePos] = currentValue;
 			nextWritePos++;
@@ -107,6 +113,7 @@ int main(int argc, char* argv[])
 				nextWritePos = 0;
 			}
 
+			// Print out page frames
 			for(int j = 0; j < frameSize; j++)
 			{
 				printf("%d ", frame[j]);

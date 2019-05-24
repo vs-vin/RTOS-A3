@@ -1,4 +1,7 @@
 /*********************************************************
+Name: Vinayak Sharma
+SN: 97117523
+
    ----- 48450 -- Assignment 3 - Program 1 ------
 This program implements the Round Robin (RR) algorithm for CPU scheduling
 
