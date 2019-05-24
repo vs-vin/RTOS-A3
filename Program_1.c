@@ -1,22 +1,21 @@
 /*********************************************************
-   ----- 48450 -- week 8 lab handout 2 ------
-This is a program to practice CPU Scheduling algorithm about shortest remaining time first
+   ----- 48450 -- Assignment 3 - Program 1 ------
+This program implements the Round Robin (RR) algorithm for CPU scheduling
 
  The input data of the cpu scheduling algorithm is:
 --------------------------------------------------------
 Process ID           Arrive time          Burst time
-    1			              0	    	            10
-    2                   7                   31
-    3                   12                  12
-    4                   3                   8
-    5                   16                  5
-    6                   30                  19
-    7                   15                  6
-    8                   30                  13
+    1			               8	    	            10
+    2                   10           	         3
+    3                   14            	       7
+    4                    9         	  	       5
+    5                   16         	 	         4
+    6                   21          	         6
+    7                   26             		     2
 --------------------------------------------------------
 
 To compile:
-	gcc -Wall -pthread -lrt SRTF_example.c -o srtf
+	gcc -Wall -pthread -lrt Program_1.c -o prog1
 
 
 *********************************************************/
@@ -33,8 +32,6 @@ To compile:
 #include<stdint.h>
 #include<errno.h>
 #include<string.h>
-// #include <limits.h>
-// #include<stdin.h>
 
 /*---------------------------------- Defines -------------------------------*/
 #define BUFFER_SIZE 30 + 1
@@ -54,7 +51,7 @@ typedef struct
 process_info process[9];
 //Queue variable
 int Len = 0;
-//Time quantum
+//Time quantum for RR
 int Time_quantum = 0;
 //Output file
 char Output_file[MAX_PATH];
@@ -73,7 +70,7 @@ int FD, fd;
 //Create process arrive times and burst times, taken from assignment details
 void input_processes();
 //Schedule processes according to SRTF rule
-void process_SRTF();
+void process_RR();
 //Simple calculate average wait time and turnaround time function
 void calculate_average();
 //Print results, taken from sample
@@ -97,18 +94,16 @@ void instructions(void)
 }
 
 /*---------------------------------- Implementation -------------------------------*/
-//Create semaphores, run threads then end threads and semaphores when finished
+//Check arguments entered, create semaphores, run threads then end threads and 
+// semaphores when finished
 int main(int argc, char* argv[]) 
 {
 	int len;
-	// int arg_num = argc;
-	int quantum;
+	int quantum; // holds value until confirmed within range
 
-	// len[0] = strlen(argv[0]);
-	// len[1] = strlen(argv[1]);
+	/* ------------- Verify Arguments ------------- */
 
-	// printf("Argument1: %s of length %d\n Argument2: %s of length %d", argv[0], len[0], argv[1], len[1]);
-
+	// Check number of arguements entered on execution
 	if (argc > 3)
 	{
 		printf("Too many arguments provided.\n");
@@ -122,14 +117,10 @@ int main(int argc, char* argv[])
 		return(-8);
 	}
 
-	// for (int i = 0; i < arg_num + 1; i++)
-	// {
-	// 	len[i] = strlen(argv[i]);
-	// }
-
+	// convert second arg to integer and store
 	quantum = atoi(argv[1]);
 
-	// save time quantum
+	// Check entered time quantum within range
 	if ((quantum > 999) || (quantum < 1))
 	{
 		printf("Time quantum out of range.\n");
@@ -137,7 +128,10 @@ int main(int argc, char* argv[])
 		return(-9);
 	}
 
+	// measure file name length from argument 3
 	len = strlen(argv[2]);
+
+	// Check if length within range
 	if (len < 5)
 	{
 		printf("Output file name too small, make sure file extension is included\n");
@@ -153,13 +147,16 @@ int main(int argc, char* argv[])
 
 	printf("\nArgument2: %d Argument3: %s of length %d", quantum, argv[2], len);
 
+	// Save arguments to global variables
 	Time_quantum = quantum;
-
 	strcpy(Output_file, argv[2]);
 
 	printf("\nOutput file: %s\n", Output_file);
 
+	/* ------------- Make Named Pipe ------------- */
+	mkfifo(myfifo, 0666);
 
+	/* ------------- Initialise semaphores ------------- */
 	if(sem_init(&sem_SRTF, 0, 0)!=0)
 	{
 	    printf("semaphore initialize error \n");
@@ -172,13 +169,7 @@ int main(int argc, char* argv[])
 	    return(-11);
 	}
 
-	int j = mkfifo(myfifo, 0666);
-
-	if (j != 0)
-	{
-		printf("\nError creating FIFO\n");
-		perror("ERROR mkfifo()");
-	}
+	/* ------------- Create Threads ------------- */
 
 	if(pthread_create(&thread1, NULL, (void *)thread1_routine, NULL)!=0)
  	{
@@ -191,6 +182,7 @@ int main(int argc, char* argv[])
 	    return -2;
 	}
 
+	/* ------------- Wait for Threads to finish ------------- */
 	if(pthread_join(thread1, NULL)!=0)
 	{
 	    printf("join thread 1 error\n");
@@ -201,6 +193,8 @@ int main(int argc, char* argv[])
 	    printf("join thread 2 error\n");
 	    return -4;
 	}
+
+	/* ------------- Destroy Semaphores ------------- */
 
 	if(sem_destroy(&sem_SRTF)!=0)
 	{
@@ -217,67 +211,68 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
-//Thread 1 of assignment
+// Thread 1
 void thread1_routine() 
 {
-	 // Open FIFO for read and write 
-  fd = open(myfifo, O_RDWR); // difference 2
+	// Open FIFO for read and write 
+  fd = open(myfifo, O_RDWR); 
+
+  // Check file opened correctly
+  if (fd < 0)
+		{
+			printf("\nfd ERROR is %d\n", fd);
+			perror("ERROR open()");
+			exit(-1);
+		}
 
 	input_processes();
-	process_SRTF();
+	process_RR();
 	calculate_average();
 
+	// Write calculated global floats to formatted string
 	char buffer[BUFFER_SIZE] = " ";
 
 	sprintf(buffer, "%f %f", avg_wait_t, avg_turnaround_t);
 
 	printf("\nString: %s\n", buffer);
 
-	if (fd < 0)
-		{
-			printf("\nfd ERROR is %d\n", fd);
-			perror("ERROR open()");
-		}
-
-	// printf("\nhere?\n");
+	// Send formatted string to named pipe
 	int k = write(fd, buffer, BUFFER_SIZE);
 	printf("\tadded %d byte(s) to fifo\n", k);
 
+	// signal Thread 2 to continue running
 	sem_post(&sem_SRTF);
+	// wait for Thread 2 to finish reading from named pipe
 	sem_wait(&sem_read);
 	// close file pointers
 	close(fd);
 }
 
-//Thread 2 of assignment
+// Thread 2
 void thread2_routine() 
 {
 	float wait, turnaround;
 
 	char buffer[BUFFER_SIZE];
 
+	// Wait for Thread 1 to write values to named pipe
 	sem_wait(&sem_SRTF);
-
-	printf("\nhere?\n");
-
-	// mkfifo(AvgFifo, 0666);
-	// fd = open(myfifo, O_RDONLY);
 
 	read(fd, buffer, BUFFER_SIZE);
 
+	// Obtaing float values from formatted string from named pipe
 	sscanf(buffer, "%f %f", &wait, &turnaround);
 
 	printf("\nRead from FIFO: %f, %f\n", wait, turnaround);
 
+	// Signal Thread 1 that named pipe has been read from
 	sem_post(&sem_read);
 
+	// Print obtained float values
 	print_results(wait, turnaround);
 
-	// Print to output file
-
-	// initialise file variables
+	/* ------------- Generate Output File ------------- */
 	FILE *fp;
-	//char* filename = Output_file;
 
 	// Open data file
 	fp = fopen(Output_file, "w");
@@ -290,7 +285,7 @@ void thread2_routine()
 	{
 		fprintf(fp, "Average Wait Time:\t %fms\t", wait);
 		fprintf(fp, "Average Turnaround Time:\t %fms", turnaround);
-
+		// Mirror in terminal
 		printf("Average Wait Time:\t %fms\n", wait);
 		printf("Average Turnaround Time:\t %fms\n", turnaround);
 
@@ -299,20 +294,19 @@ void thread2_routine()
 
 }
 
-/* The input data of the cpu scheduling algorithm is:
+/*  The input data of the cpu scheduling algorithm is:
 --------------------------------------------------------
 Process ID           Arrive time          Burst time
-    1										0		  						  10
-    2                   7                   31
-    3                   12                  12
-    4                   3                   8
-    5                   16                  5
-    6                   30                  19
-    7                   15                  6
-    8                   30                  13
+    1			               8	    	            10
+    2                   10           	         3
+    3                   14            	       7
+    4                    9         	  	       5
+    5                   16         	 	         4
+    6                   21          	         6
+    7                   26             		     2
 --------------------------------------------------------
 */
-//Create process arrive times and burst times, taken from assignment details
+// Create process arrive times and burst times, taken from assignment details
 void input_processes() {
 	process[0].pid = 1; process[0].arrive_t = 8;	process[0].burst_t = 10;
 	process[1].pid = 2; process[1].arrive_t = 10;	process[1].burst_t = 3;
@@ -321,48 +315,34 @@ void input_processes() {
 	process[4].pid = 5; process[4].arrive_t = 16; process[4].burst_t = 4;
 	process[5].pid = 6; process[5].arrive_t = 21; process[5].burst_t = 6;
 	process[6].pid = 7; process[6].arrive_t = 26; process[6].burst_t = 2;
-	//process[7].pid = 8; process[7].arrive_t = 30; process[7].burst_t = 13;
 
-	//Initialise remaining time to be same as burst time
-	for (int i = 0; i < PROCESSNUM; i++) {
+	// Initialise remaining time to be same as burst time
+	for (int i = 0; i < PROCESSNUM; i++) 
+	{
 		process[i].remain_t = process[i].burst_t;
 	}
 }
 
-//Schedule processes according to SRTF rule
-void process_SRTF() 
+// Schedule processes according to RR Algorithm
+void process_RR() 
 {
 
   int current = 0, time = 0, finished = 0, arrived = 0, idle = 1;
-
-  // int fd;
 
   int q = 0;
 
   uint8_t r, w;
 
-  // uint8_t integer;
-
-  // FIFO file path 
-  	// char * myfifo = "/tmp/myfifo"; 
-
-  	// mkfifo(myfifo, 0666);  //difference 1
-
-  // O_RDWR read and write mode
-
-  // // Open FIFO for read and write 
-  	// fd = open(myfifo, O_RDWR); // difference 2
-
   //Run function until remain is equal to number of processes
   for (time = 0; finished < PROCESSNUM; time++) 
   {
-  	/* when decrementing remaining time then un comment below */
-  	// if (arrived == finished)
-  	// {
-  	// 	idle = 1;
-  	// }
+  	// Check if processes need to run on CPU
+  	if (arrived == finished)
+  	{
+  		idle = 1;
+  	}
 
-		//Check if a process has arrived and add to the queue
+		// Check if a process has arrived and add to the queue
 	  for (int i = 0;i < PROCESSNUM;i++) 
 	  {
 	  	if (process[i].arrive_t == time)
@@ -370,32 +350,33 @@ void process_SRTF()
 	  		arrived++;
 	  		w = i + 1;
 	  		printf("\nP%d has arrived at time %d\n", w, time);
+
+	  		// Check if processes in queue or CPU not idle
 	  		if (Len > 0 || !(idle))
 	  		{
 	  			queue_add(fd, w);
 	  		}
 	  		else
 	  		{
+	  			// If no queue or CPU idle, set arrived process to run immediately
 	  			current = w - 1;
-	  			printf("\t Current process set to process[%d]\n", current);
+	  			printf("\n--------- Current process set to P%d ---------\n", (current+1));
 	  			printf("\t  Remaining time %d\n", process[current].remain_t);
-	  			idle = 0;
-	  			q = 0;
+	  			idle = 0; // CPU now active
+	  			q = 0; // reset quantum
 	  		}
 	  		
 	  	}
 
 	  }
 
-	  // Check if processes have finished
+	  // Check if processes have finished, only if CPU not idle
 	  if (!idle)
 	  {
-	  	// process[current].remain_t--;
-
 	  	if (process[current].remain_t <= 0)
 	  	{
-	  		printf("\n<<<<<<<< Process %d finished at time %d >>>>>>>>\n", 
-	  																				(current +1), time);
+	  		printf("\n<<<<< Process %d finished at time %d >>>>>\n", 
+	  																				(current+1), time);
 	  		finished++;
 	  		q = 0;
 
@@ -406,19 +387,19 @@ void process_SRTF()
 	  		{
 					r = queue_take(fd);
 		    	current = r - 1;
-		    	printf("\t Current process set to process[%d]\n", current);
+		    	printf("\n--------- Current process set to P%d ---------\n", (current+1));
 		    	printf("\t  Remaining time %d\n", process[current].remain_t);
 		    	idle = 0;
 		    }
 		    else
 		    {
+		    	// if no queue, set CPU as idle
 		    	idle = 1;
 		    }
 	  	}
-
-	  	// process[current].remain_t--; 	
 	  }
 
+	  // Check time quantum
     q++;
   	if (q > Time_quantum)
   	{
@@ -435,61 +416,23 @@ void process_SRTF()
   			// get next process from queue
   			r = queue_take(fd);
 	    	current = r - 1;
-	    	printf("\t Current process set to process[%d]\n", current);
+	    	printf("\n--------- Current process set to P%d ---------\n", (current+1));
 	    	printf("\t  Remaining time %d\n", process[current].remain_t);
 	    	idle = 0;
 	    	
   		}
   		
   	}
-  	// getchar(); // step through
+  	// if CPU active, decrement currently running process' remaining time
   	if (!idle)
 	  {
   		process[current].remain_t--;
-  		printf("*****Remaining time in P%d is %d\n", w, process[current].remain_t);
+  		printf("\tRemaining time in P%d is %d *****\n", (current+1), process[current].remain_t);
   	}
-  }
-
-  printf("\nqueue in FIFO is:\n");
-  while (Len > 0)
-  {
-		queue_take(fd);
   }
 
   printf("\n\tROUND ROBIN FINISHED\n");
 
-  // close(fd);
-  // unlink(myfifo);
-/*****************************************************************
-        // if (process[i].arrive_t <= time && process[i].remain_t < process[smallest].remain_t && 
-        // 		process[i].remain_t > 0) 
-        // {
-        //   smallest = i;
-        // }
-      }
-
-//Decrease remaining time as time increases
-      process[current].remain_t--;
-
-//If process is finished, save time information, add to average totals and increase remain
-    if (process[current].remain_t == 0) 
-    {
-
-      finished++;
-
-      endTime=time+1;
-
-	    process[current].turnaround_t = endTime - process[current].arrive_t;
-
-	    process[current].wait_t = process{current].turnaround_t - process[current].burst_t;
-
-	    avg_wait_t += process[current].wait_t;
-
-	    avg_turnaround_t += process[current].turnaround_t;
-    }
-  }
-
-***************************************************************/
 }
 
 //Simple calculate average wait time and turnaround time function
@@ -499,7 +442,7 @@ void calculate_average()
 	avg_turnaround_t /= PROCESSNUM;
 }
 
-//Print results, taken from sample
+//Print results of scheduling algorithm
 void print_results(float wait, float turnaround) 
 {
 
@@ -539,7 +482,6 @@ uint8_t queue_take(int fd)
 
 void calculate_process_times(int time, int current)
 {
-	// must take current time increment into account.
 	int endTime = time;
 
   process[current].turnaround_t = endTime - process[current].arrive_t;
