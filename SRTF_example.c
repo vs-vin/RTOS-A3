@@ -28,12 +28,13 @@ Process ID           Arrive time          Burst time
 #include<fcntl.h>
 #include<stdint.h>
 #include<errno.h>
-// #include<string.h>
+#include<string.h>
 // #include <limits.h>
 // #include<stdin.h>
 
 /*---------------------------------- Defines -------------------------------*/
 #define BUFFER_SIZE 30 + 1
+#define MAX_PATH 100 + 1
 
 /*---------------------------------- Variables -------------------------------*/
 //a struct storing the information of each process
@@ -49,6 +50,10 @@ typedef struct
 process_info process[9];
 //Queue variable
 int Len = 0;
+//Time quantum
+int Time_quantum = 0;
+//Output file
+char Output_file[MAX_PATH];
 //Averages calculated
 float avg_wait_t = 0.0, avg_turnaround_t = 0.0;
 //Semaphore
@@ -80,9 +85,76 @@ uint8_t queue_take(int fd);
 //Used when processes finish to calculate wait times and turn around times
 void calculate_process_times(int time, int current);
 
+void instructions(void)
+{
+	printf("\n\tSecond argument is the time quantum in milliseconds\n with range 1-999\n");
+	printf("\tThird argument is the output file name, including\n");
+	printf("\tfile name extension (e.g. output.txt)\n");
+}
+
 /*---------------------------------- Implementation -------------------------------*/
 //Create semaphores, run threads then end threads and semaphores when finished
-int main() {
+int main(int argc, char* argv[]) 
+{
+	int len;
+	// int arg_num = argc;
+	int quantum;
+
+	// len[0] = strlen(argv[0]);
+	// len[1] = strlen(argv[1]);
+
+	// printf("Argument1: %s of length %d\n Argument2: %s of length %d", argv[0], len[0], argv[1], len[1]);
+
+	if (argc > 3)
+	{
+		printf("Too many arguments provided.\n");
+		instructions();
+		return (-7);
+	}
+	else if (argc < 3)
+	{
+		printf("Too few arguments provided.\n");
+		instructions();
+		return(-8);
+	}
+
+	// for (int i = 0; i < arg_num + 1; i++)
+	// {
+	// 	len[i] = strlen(argv[i]);
+	// }
+
+	quantum = atoi(argv[1]);
+
+	// save time quantum
+	if ((quantum > 999) || (quantum < 1))
+	{
+		printf("Time quantum out of range.\n");
+		instructions();
+		return(-9);
+	}
+
+	len = strlen(argv[2]);
+	if (len < 5)
+	{
+		printf("Output file name too small, make sure file extension is included\n");
+		instructions();
+		return(-12);
+	}
+	else if (len > MAX_PATH)
+	{
+		printf("Output file name too big!\n");
+		instructions();
+		return(-13);
+	}
+
+	printf("\nArgument2: %d Argument3: %s of length %d", quantum, argv[2], len);
+
+	Time_quantum = quantum;
+
+	strcpy(Output_file, argv[2]);
+
+	printf("\nOutput file: %s\n", Output_file);
+
 
 	if(sem_init(&sem_SRTF, 0, 0)!=0)
 	{
@@ -157,17 +229,6 @@ void thread1_routine()
 
 	printf("\nString: %s\n", buffer);
 
-	// int j = mkfifo(AvgFifo, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
-		// int j = mkfifo(AvgFifo, 0666);
-
-		// if (j != 0)
-		// {
-		// 	printf("\nError creating FIFO\n");
-		// 	perror("ERROR:");
-		// }
-	// printf("\nINT_MAX is %d\n", INT_MAX);
-	// FD = open(AvgFifo, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR);
-		// fd = open(myfifo, O_WRONLY);
 	if (fd < 0)
 		{
 			printf("\nfd ERROR is %d\n", fd);
@@ -209,6 +270,28 @@ void thread2_routine()
 	print_results(wait, turnaround);
 
 	// Print to output file
+
+	// initialise file variables
+	FILE *fp;
+	//char* filename = Output_file;
+
+	// Open data file
+	fp = fopen(Output_file, "w");
+	if (fp == NULL)
+	{
+	    printf("Could not open file %s",Output_file);
+	    return;
+	}
+	else
+	{
+		fprintf(fp, "Average Wait Time:\t %fms\t", wait);
+		fprintf(fp, "Average Turnaround Time:\t %fms", turnaround);
+
+		printf("Average Wait Time:\t %fms\n", wait);
+		printf("Average Turnaround Time:\t %fms\n", turnaround);
+
+		fclose(fp);
+	}
 
 }
 
@@ -327,7 +410,7 @@ void process_SRTF()
 	  }
 
     q++;
-  	if (q > 4)
+  	if (q > Time_quantum)
   	{
   		printf("\n--------- Time quantum elapsed at time %d ---------\n", time);
   		q = 1;
