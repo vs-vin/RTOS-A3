@@ -15,6 +15,10 @@ Process ID           Arrive time          Burst time
     8                   30                  13
 --------------------------------------------------------
 
+To compile:
+	gcc -Wall -pthread -lrt SRTF_example.c -o srtf
+
+
 *********************************************************/
 
 #include<stdio.h>
