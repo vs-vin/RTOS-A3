@@ -19,7 +19,7 @@
 #include <signal.h>
 
 //Number of pagefaults in the program
-int pageFaults = 0;
+int PageFaults = 0;
 
 //Function declaration
 void SignalHandler(int signal);
@@ -45,10 +45,10 @@ int main(int argc, char* argv[])
 						 "Make sure to provide the frame size as second argument.\n");
 		return(-2);
 	}
-	//Register Ctrl+c(SIGINT) signal and call the signal handler for the function.
-	//add your code here
 	
-        // int i;
+	//Register Ctrl+c(SIGINT) signal and call the signal handler for the function.
+  signal(SIGINT, SignalHandler);
+
 	// reference number
 	int REFERENCESTRINGLENGTH = 24;
 	//Argument from the user on the frame size, such as 4 frames in the document
@@ -64,7 +64,9 @@ int main(int argc, char* argv[])
 	//Current value of the reference string.
 	int currentValue;
 
-	printf("\nFrame size entered is %d\n", frameSize);
+	printf("\nFrame size entered is %d", frameSize);
+	printf("\n\tPF: Page Fault");
+	printf("\n\tPH: Page Hit\n\n");
 
 	//Initialise the empty frame with -1 to simulate empty values.
 	for(int i = 0; i < frameSize; i++)
@@ -77,21 +79,43 @@ int main(int argc, char* argv[])
 	{
 		//add your code here
 		currentValue = referenceString[i];
-		printf("\n %d \t", currentValue);
+		printf("%d ", currentValue);
 
-		frame[nextWritePos] = currentValue;
-		nextWritePos++;
-		if (nextWritePos >= frameSize)
-		{
-			nextWritePos = 0;
-		}
-
+		match = 0;
 		for(int j = 0; j < frameSize; j++)
 		{
-			printf("%d ", frame[j]);
+			if (currentValue == frame[j])
+			{
+				match = true;
+				break;
+			}
 		}
-		
+
+		if (match)
+		{
+			printf(" PH");
+		}
+		else
+		{
+			printf(" PF\t");
+			PageFaults++;
+			// FIFO algorithm
+			frame[nextWritePos] = currentValue;
+			nextWritePos++;
+			if (nextWritePos >= frameSize)
+			{
+				nextWritePos = 0;
+			}
+
+			for(int j = 0; j < frameSize; j++)
+			{
+				printf("%d ", frame[j]);
+			}
+		}
+		printf("\n");
 	}
+
+	printf("\nPress Ctrl+C to exit>\n");
 
 	//Sit here until the ctrl+c signal is given by the user.
 	while(1)
@@ -109,6 +133,6 @@ int main(int argc, char* argv[])
  */
 void SignalHandler(int signal)
 {
-	printf("\nTotal page faults: %d\n", pageFaults);
+	printf("\nTotal page faults: %d\n", PageFaults);
 	exit(0);
 }
