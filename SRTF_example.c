@@ -374,7 +374,9 @@ void process_SRTF()
 	  		{
 	  			current = w - 1;
 	  			printf("\t Current process set to process[%d]\n", current);
+	  			printf("\t  Remaining time %d\n", process[current].remain_t);
 	  			idle = 0;
+	  			q = 0;
 	  		}
 	  		
 	  	}
@@ -384,11 +386,12 @@ void process_SRTF()
 	  // Check if processes have finished
 	  if (!idle)
 	  {
-	  	process[current].remain_t--;
+	  	// process[current].remain_t--;
 
-	  	if (process[current].remain_t == 0)
+	  	if (process[current].remain_t <= 0)
 	  	{
-	  		printf("\n<<<<<<<< Process %d finished at time %d >>>>>>>>\n", (current +1), time);
+	  		printf("\n<<<<<<<< Process %d finished at time %d >>>>>>>>\n", 
+	  																				(current +1), time);
 	  		finished++;
 	  		q = 0;
 
@@ -400,13 +403,16 @@ void process_SRTF()
 					r = queue_take(fd);
 		    	current = r - 1;
 		    	printf("\t Current process set to process[%d]\n", current);
+		    	printf("\t  Remaining time %d\n", process[current].remain_t);
 		    	idle = 0;
 		    }
 		    else
+		    {
 		    	idle = 1;
-
+		    }
 	  	}
-	  	
+
+	  	// process[current].remain_t--; 	
 	  }
 
     q++;
@@ -420,17 +426,24 @@ void process_SRTF()
   			// add curent to queue
   			w = current + 1;
   			queue_add(fd, w);
+  			printf("\tRemaining time in P%d is %d\n", w, process[current].remain_t);
 
   			// get next process from queue
   			r = queue_take(fd);
 	    	current = r - 1;
 	    	printf("\t Current process set to process[%d]\n", current);
+	    	printf("\t  Remaining time %d\n", process[current].remain_t);
 	    	idle = 0;
 	    	
   		}
   		
   	}
   	// getchar(); // step through
+  	if (!idle)
+	  {
+  		process[current].remain_t--;
+  		printf("*****Remaining time in P%d is %d\n", w, process[current].remain_t);
+  	}
   }
 
   printf("\nqueue in FIFO is:\n");
@@ -491,7 +504,9 @@ void print_results(float wait, float turnaround)
 	printf("\tProcess ID\tArrival Time\tBurst Time\tWait Time\tTurnaround Time\n");
 
 	for (int i = 0; i<PROCESSNUM; i++) {
-	  	printf("\t%d\t\t%d\t\t%d\t\t%d\t\t%d\n", process[i].pid,process[i].arrive_t, process[i].burst_t, process[i].wait_t, process[i].turnaround_t);
+	  	printf("\t%d\t\t%d\t\t%d\t\t%d\t\t%d\n", 
+	  						process[i].pid,process[i].arrive_t, process[i].burst_t, 
+	  						process[i].wait_t, process[i].turnaround_t);
 	}
 
 	printf("\nAverage wait time: %fms\n", avg_wait_t);
@@ -520,7 +535,8 @@ uint8_t queue_take(int fd)
 
 void calculate_process_times(int time, int current)
 {
-	int endTime = time + 1;
+	// must take current time increment into account.
+	int endTime = time;
 
   process[current].turnaround_t = endTime - process[current].arrive_t;
 
