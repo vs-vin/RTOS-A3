@@ -35,13 +35,13 @@ int main(int argc, char* argv[])
 {
 	if (argc < 2)
 	{
-		printf("\nToo few arguments. "
+		printf("\nERROR: Too few arguments. "
 						 "Make sure to provide the frame size as second argument.\n");
 		return(-1);
 	}
 	else if (argc > 2)
 	{
-		printf("\nToo many arguments. "
+		printf("\nERROR: Too many arguments. "
 						 "Make sure to provide the frame size as second argument.\n");
 		return(-2);
 	}
@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
 	//Reference string from the assignment outline
 	int referenceString[24] = {7,0,1,2,0,3,0,4,2,3,0,3,0,3,2,1,2,0,1,7,0,1,7,5};
 	//Next position to write a new value to.
-	int nextWritePosition = 0;
+	int nextWritePos = 0;
 	//Boolean value for whether there is a match or not.
 	bool match = false;
 	//Current value of the reference string.
@@ -78,6 +78,13 @@ int main(int argc, char* argv[])
 		//add your code here
 		currentValue = referenceString[i];
 		printf("\n %d \t", currentValue);
+
+		frame[nextWritePos] = currentValue;
+		nextWritePos++;
+		if (nextWritePos >= frameSize)
+		{
+			nextWritePos = 0;
+		}
 
 		for(int j = 0; j < frameSize; j++)
 		{
